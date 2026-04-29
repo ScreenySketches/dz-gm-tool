@@ -6,7 +6,7 @@
   "author": "Self-hosted",
   "version": "1.0.0",
   "action": {
-    "url": "https://screenysketches.github.io/dz-gm-tool/index.html",
+    "popover": "https://screenysketches.github.io/dz-gm-tool/index.html",
     "title": "D&Z GM Tool",
     "icon": "https://screenysketches.github.io/dz-gm-tool/icon.svg",
     "height": 800,
