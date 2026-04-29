@@ -1,6 +1,5 @@
 {
   "manifest_version": 1,
-  "id": "com.dzgm.tool",
   "name": "D&Z GM Tool",
   "description": "Initiative tracker, action economy, weapon resolvers, and walker bestiary.",
   "author": "Self-hosted",
