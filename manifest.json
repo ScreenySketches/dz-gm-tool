@@ -2,7 +2,7 @@
   "manifest_version": 1,
   "id": "com.dzgm.tool",
   "name": "D&Z GM Tool",
-  "description": "Game-master companion for homebrew D&Z TTRPG. Initiative tracker, action economy, weapon resolvers, and walker bestiary.",
+  "description": "Initiative tracker, action economy, weapon resolvers, and walker bestiary.",
   "author": "Self-hosted",
   "version": "1.0.0",
   "action": {
