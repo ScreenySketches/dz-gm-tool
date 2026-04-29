@@ -338,6 +338,7 @@
 
 <div class="modal-bg" id="modal"><div class="modal" id="modal-inner"></div></div>
 
+<script src="storage-polyfill.js"></script>
 <script>
 /* ============================================================
    D&Z GM TOOL — ALL DATA AND LOGIC
@@ -620,6 +621,7 @@ const CONDITION_PRESETS = [
 const STORAGE_KEY = 'dz-gm-tool-v1';
 
 let state = {
+  // ... (polyfill handles storage)
   combatants: [],   // PCs and NPCs alike
   firearmLib: [],   // user-customized library (presets are merged in for display)
   customFirearms: [], // truly custom additions only — saved/loaded
@@ -640,12 +642,12 @@ let state = {
 
 function uuid() { return 'id_' + Math.random().toString(36).slice(2, 9) + Date.now().toString(36).slice(-4); }
 
-function loadState() {
+async function loadState() {
+  dzStorage.migrate();
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) {
-      const loaded = JSON.parse(raw);
-      Object.assign(state, loaded);
+    const res = await dzStorage.get([STORAGE_KEY]);
+    if (res[STORAGE_KEY]) {
+      Object.assign(state, res[STORAGE_KEY]);
     }
   } catch (e) { console.warn('Failed to load state:', e); }
   // Migrate any old-format combatants
@@ -654,9 +656,13 @@ function loadState() {
   document.getElementById('gm-mode-toggle').checked = !!state.gmMode;
 }
 
-function saveState() {
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
-  catch (e) { console.warn('Failed to save state:', e); }
+async function saveState() {
+  try { 
+    await dzStorage.set({[STORAGE_KEY]: state}); 
+    if (window.obrState?.connected && window.obrState.role === 'GM') {
+      pushToOBRDebounced();
+    }
+  } catch (e) { console.warn('Failed to save state:', e); }
 }
 
 function exportData() {
@@ -3154,20 +3160,26 @@ function renderAll() {
   renderLastRoll();
 }
 
-(function init() {
-  loadState();
-  setupTabs();
-  renderAll();
-
-  // Keyboard shortcut: Space (when no input focused) → next turn
-  document.addEventListener('keydown', e => {
-    if (e.target.matches('input, textarea, select')) return;
-    if (e.code === 'Space') {
-      const activeTab = document.querySelector('#tabs button.active')?.dataset.tab;
-      if (activeTab === 'roster') { e.preventDefault(); nextTurn(); }
-    }
-  });
+(async function init() {
+  // Load polyfill first
+  const polyfill = document.createElement('script');
+  polyfill.src = chrome.runtime?.getURL ? chrome.runtime.getURL('storage-polyfill.js') : 'storage-polyfill.js';
+  polyfill.onload = () => {
+    loadState();
+    setupTabs();
+    renderAll();
+    // Keyboard shortcut: Space (when no input focused) → next turn
+    document.addEventListener('keydown', e => {
+      if (e.target.matches('input, textarea, select')) return;
+      if (e.code === 'Space') {
+        const activeTab = document.querySelector('#tabs button.active')?.dataset.tab;
+        if (activeTab === 'roster') { e.preventDefault(); nextTurn(); }
+      }
+    });
+  };
+  document.head.appendChild(polyfill);
 })();
+
 </script>
 </body>
 </html>

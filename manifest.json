@@ -1,14 +1,55 @@
 {
-  "manifest_version": 1,
-  "name": "D&Z GM Tool",
-  "description": "Initiative tracker, action economy, weapon resolvers, and walker bestiary.",
+  "manifest_version": 3,
+  "name": "D&amp;Z GM Tool",
+  "version": "1.1.0",
+  "description": "Initiative tracker, action economy, weapon resolvers, and walker bestiary for D&amp;Z RPG. Now with Owlbear Rodeo integration!",
   "author": "Self-hosted",
-  "version": "1.0.0",
+  
+  "icons": {
+    "16": "icon.svg",
+    "32": "icon.svg",
+    "48": "icon.svg",
+    "128": "icon.svg"
+  },
+  
+  "permissions": [
+    "storage",
+    "activeTab",
+    "sidePanel"
+  ],
+  
+  "host_permissions": [
+    "https://*.owlbear.fyi/*"
+  ],
+  
   "action": {
-    "popover": "https://screenysketches.github.io/dz-gm-tool/index.html",
-    "title": "D&Z GM Tool",
-    "icon": "https://screenysketches.github.io/dz-gm-tool/icon.svg",
-    "height": 600,
-    "width": 800
-  }
+    "default_popup": "dz-gm-tool.html",
+    "default_title": "D&amp;Z GM Tool"
+  },
+  
+  "side_panel": {
+    "default_path": "dz-gm-tool.html"
+  },
+  
+  "content_scripts": [
+    {
+      "matches": ["https://*.owlbear.fyi/*"],
+      "js": ["dz-gm-tool.html"],
+      "css": [],
+      "run_at": "document_idle",
+      "world": "MAIN"
+    }
+  ],
+  
+  "background": {
+    "service_worker": "background.js"
+  },
+  
+  "web_accessible_resources": [
+    {
+      "resources": ["dz-gm-tool.html", "icon.svg"],
+      "matches": ["https://*.owlbear.fyi/*"]
+    }
+  ]
 }
+
