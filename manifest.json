@@ -1,0 +1,15 @@
+{
+  "manifest_version": 1,
+  "id": "com.dzgm.tool",
+  "name": "D&Z GM Tool",
+  "description": "Game-master companion for the homebrew D&Z (D&D + Zombies) TTRPG. Initiative tracker, action economy, firearm and melee resolvers, walker bestiary, and full rule reference.",
+  "author": "Self-hosted",
+  "version": "1.0.0",
+  "action": {
+    "url": "REPLACE_WITH_YOUR_GITHUB_PAGES_URL/index.html",
+    "title": "D&Z GM Tool",
+    "icon": "REPLACE_WITH_YOUR_GITHUB_PAGES_URL/icon.svg",
+    "height": 800,
+    "width": 600
+  }
+}
