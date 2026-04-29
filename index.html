@@ -3592,25 +3592,74 @@ async function dropBestiaryOnMap(presetId) {
 <script type="module">
   // Load the Owlbear Rodeo SDK. If we're not in an OBR iframe,
   // OBR.onReady will never fire and we'll mark standalone after a timeout.
-  import('https://esm.sh/@owlbear-rodeo/sdk@2.7.0').then(SDK => {
-    window.OBR = SDK.default || SDK.OBR || SDK;
-    window.OBR_BUILDERS = {
-      buildLabel: SDK.buildLabel,
-      buildShape: SDK.buildShape,
-      buildImage: SDK.buildImage,
-      buildText:  SDK.buildText
-    };
-    if (window.OBR && typeof window.OBR.onReady === 'function') {
-      window.OBR.onReady(async () => {
-        if (typeof window.dzInitOBR === 'function') {
-          try { await window.dzInitOBR(); }
-          catch (e) { console.error('dzInitOBR failed:', e); }
-        }
-      });
+  (async function bootstrapOBR() {
+    // Helpful diagnostics for debugging OBR injection issues
+    try {
+      let parentHref = null;
+      try { parentHref = window.parent && window.parent.location && window.parent.location.href; } catch (e) { parentHref = '[parent access denied]'; }
+      let topHref = null;
+      try { topHref = window.top && window.top.location && window.top.location.href; } catch (e) { topHref = '[top access denied]'; }
+      console.log('OBR bootstrap: window.location=', window.location.href);
+      console.log('OBR bootstrap: parent.location=', parentHref);
+      console.log('OBR bootstrap: top.location=', topHref);
+    } catch (e) {}
+
+    // Prefer any OBR object injected by the host frame
+    try {
+      if (window.parent && window.parent.OBR) {
+        window.OBR = window.parent.OBR;
+        console.log('Using OBR from window.parent');
+      } else if (window.top && window.top.OBR) {
+        window.OBR = window.top.OBR;
+        console.log('Using OBR from window.top');
+      }
+    } catch (e) {
+      console.warn('Error checking parent/top for OBR:', e);
     }
-  }).catch(e => {
-    console.warn('OBR SDK load failed (running standalone):', e);
-  });
+
+    // If no injected OBR found, fall back to loading the SDK bundle (useful for dev/mock environments)
+    if (!window.OBR) {
+      try {
+        const SDK = await import('https://esm.sh/@owlbear-rodeo/sdk@2.7.0');
+        window.OBR = SDK.default || SDK.OBR || SDK;
+        window.OBR_BUILDERS = {
+          buildLabel: SDK.buildLabel,
+          buildShape: SDK.buildShape,
+          buildImage: SDK.buildImage,
+          buildText:  SDK.buildText
+        };
+        console.log('Loaded OBR SDK bundle (no host injection).');
+      } catch (e) {
+        console.warn('OBR SDK load failed (running standalone):', e);
+      }
+    } else {
+      // If OBR was injected by host, try to use its builders if present
+      try {
+        if (!window.OBR_BUILDERS && window.OBR && window.OBR.buildLabel) {
+          window.OBR_BUILDERS = {
+            buildLabel: window.OBR.buildLabel,
+            buildShape: window.OBR.buildShape,
+            buildImage: window.OBR.buildImage,
+            buildText:  window.OBR.buildText
+          };
+        }
+      } catch (e) { /* ignore */ }
+    }
+
+    // Wire up onReady if available
+    try {
+      if (window.OBR && typeof window.OBR.onReady === 'function') {
+        window.OBR.onReady(async () => {
+          if (typeof window.dzInitOBR === 'function') {
+            try { await window.dzInitOBR(); }
+            catch (e) { console.error('dzInitOBR failed:', e); }
+          }
+        });
+      } else {
+        console.log('OBR.onReady not available; running standalone until SDK reports ready.');
+      }
+    } catch (e) { console.warn('Error wiring OBR.onReady:', e); }
+  })();
   // Standalone fallback after 2.5s if OBR never reported ready
   setTimeout(() => {
     if (!window.obrState || !window.obrState.connected) {
