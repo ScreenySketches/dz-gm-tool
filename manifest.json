@@ -6,9 +6,9 @@
   "author": "Self-hosted",
   "version": "1.0.0",
   "action": {
-    "url": "REPLACE_WITH_YOUR_GITHUB_PAGES_URL/index.html",
+    "url": "https://screenysketches.github.io/dz-gm-tool/index.html",
     "title": "D&Z GM Tool",
-    "icon": "REPLACE_WITH_YOUR_GITHUB_PAGES_URL/icon.svg",
+    "icon": "https://screenysketches.github.io/dz-gm-tool/icon.svg",
     "height": 800,
     "width": 600
   }
