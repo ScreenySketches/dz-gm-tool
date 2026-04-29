@@ -3262,7 +3262,13 @@ window.dzInitOBR = async function() {
     const sync = md[OBR_ROOM_KEY];
     if (sync && sync.combatants) {
       // Merge: replace combatants/init/round, preserve user's libraries
-      state.combatants = sync.combatants;
+      // Incoming sync uses `combatantId` to avoid sending reserved `id` keys.
+      state.combatants = (sync.combatants || []).map(sc => {
+        const c = Object.assign({}, sc);
+        if (c.combatantId && !c.id) { c.id = c.combatantId; }
+        delete c.combatantId;
+        return c;
+      });
       state.activeTurn = sync.activeTurn || null;
       state.round = sync.round || 1;
       state.combatants.forEach(c => normalizeEconomy(c));
@@ -3278,7 +3284,13 @@ window.dzInitOBR = async function() {
       const incomingHash = JSON.stringify({ ts: sync.ts });
       if (incomingHash === window.obrState.lastPushedHash) return;
       // Apply
-      state.combatants = sync.combatants || [];
+      // Map incoming sync combatants: convert `combatantId` -> `id`
+      state.combatants = (sync.combatants || []).map(sc => {
+        const c = Object.assign({}, sc);
+        if (c.combatantId && !c.id) { c.id = c.combatantId; }
+        delete c.combatantId;
+        return c;
+      });
       state.activeTurn = sync.activeTurn || null;
       state.round = sync.round || 1;
       state.combatants.forEach(c => normalizeEconomy(c));
@@ -3372,8 +3384,9 @@ function pushToOBRDebounced() {
 
 function stripCombatantForSync(c) {
   // Drop large fields and GM-only sensitive data for player visibility
+  // Use `combatantId` instead of `id` to avoid sending reserved `id` keys
   return {
-    id: c.id, name: c.name, type: c.type,
+    combatantId: c.id, name: c.name, type: c.type,
     initiative: c.initiative, hp: c.hp, ac: c.ac, speed: c.speed,
     bodyType: c.bodyType, role: c.role,
     conditions: c.conditions || [],
