@@ -8,7 +8,7 @@
     "popover": "https://screenysketches.github.io/dz-gm-tool/index.html",
     "title": "D&Z GM Tool",
     "icon": "https://screenysketches.github.io/dz-gm-tool/icon.svg",
-    "height": 800,
-    "width": 600
+    "height": 600,
+    "width": 800
   }
 }

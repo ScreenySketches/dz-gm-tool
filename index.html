@@ -1273,7 +1273,9 @@ function renderCombatant(c) {
         <input type="number" class="tiny" value="${c.speed}" onchange="updateCombatant('${c.id}','speed',this.value)">
       </span>
       <button class="small" onclick="applyDamageManual('${c.id}')" data-tip="Manual damage/heal">±HP</button>
-      <button class="small danger" onclick="if(event.shiftKey || confirm('Remove ${escapeHtml(c.name)}?')) removeCombatant('${c.id}')">×</button>
+      <button class="small" onclick="linkCombatantToSelected('${c.id}')" class="obr-only" data-tip="Select a token in OBR scene and click to link">Link Token</button>
+      <button class="small obr-only obr-drop-btn" onclick="dropCombatantOnMap('${c.id}')" data-tip="Drop this combatant as a token on the OBR scene">⊕ Drop on Map</button>
+      <button class="small" onclick="if(event.shiftKey || confirm('Remove ${escapeHtml(c.name)}?')) removeCombatant('${c.id}')">×</button>
     </div>
     ${isActive ? renderEconomyBar(c, econ) : ''}
   `;
@@ -1484,6 +1486,78 @@ function quickReload(combatantId, weaponIdx) {
   saveState();
   renderRoster();
   toast(`Reloaded ${take} ${cat} round${take===1?'':'s'}`);
+}
+
+async function linkCombatantToSelected(combatantId) {
+  if (!window.obrState || !window.obrState.connected) { toast('Not connected to OBR'); return; }
+  const O = window.OBR;
+  if (!O || !O.scene || !O.scene.items) { toast('OBR scene items unavailable'); return; }
+  try {
+    let selected = [];
+    if (typeof O.scene.items.getSelected === 'function') {
+      selected = await O.scene.items.getSelected();
+    } else if (typeof O.scene.items.getItems === 'function') {
+      // Fallback: try to get first item if selection API not available
+      const items = await O.scene.items.getItems();
+      if (items && items.length) selected = [items[0]];
+    }
+    if (!selected || selected.length === 0) { toast('No token selected in OBR scene. Select a token and try again.'); return; }
+    const item = selected[0];
+    const meta = item.metadata || {};
+    meta[OBR_ITEM_KEY] = Object.assign({}, meta[OBR_ITEM_KEY] || {}, { combatantId });
+    await O.scene.items.updateItems([item.id], items => {
+      if (items[0]) items[0].metadata = meta;
+    });
+    const c = state.combatants.find(x => x.id === combatantId);
+    if (c) { c.obrItemId = item.id; saveState(); renderRoster(); pushToOBRDebounced(); toast('Linked ' + c.name + ' to selected token.'); }
+  } catch (e) { console.error(e); toast('Link failed: ' + (e.message || 'unknown error')); }
+}
+
+async function unlinkCombatant(combatantId) {
+  if (!window.obrState || !window.obrState.connected) { toast('Not connected to OBR'); return; }
+  const O = window.OBR;
+  const c = state.combatants.find(x => x.id === combatantId);
+  if (!c || !c.obrItemId) { toast('Combatant is not linked to any token.'); return; }
+  try {
+    await O.scene.items.updateItems([c.obrItemId], items => {
+      if (items[0] && items[0].metadata) {
+        const m = Object.assign({}, items[0].metadata);
+        if (m[OBR_ITEM_KEY]) { delete m[OBR_ITEM_KEY].combatantId; }
+        items[0].metadata = m;
+      }
+    });
+  } catch (e) { console.warn('Failed to clear token metadata:', e); }
+  delete c.obrItemId;
+  saveState();
+  renderRoster();
+  pushToOBRDebounced();
+  toast('Unlinked token from ' + (c ? c.name : combatantId));
+}
+
+async function dropCombatantOnMap(combatantId) {
+  const p = state.combatants.find(c => c.id === combatantId);
+  if (!p) return;
+  if (!window.obrState || !window.obrState.connected) { toast('Not connected to OBR'); return; }
+  const O = window.OBR;
+  const B = window.OBR_BUILDERS;
+  if (!O || !B || !B.buildLabel) { toast('OBR builders unavailable'); return; }
+  try {
+    let pos = { x: 0, y: 0 };
+    try { const center = await O.viewport.getCenter(); if (center) pos = center; } catch (e) {}
+    const item = B.buildLabel()
+      .plainText(p.name + ' (HP ' + p.hp.current + '/' + p.hp.max + ')')
+      .position(pos)
+      .build();
+    item.metadata = item.metadata || {};
+    item.metadata[OBR_ITEM_KEY] = { combatantId: p.id, hp: p.hp.current, hpMax: p.hp.max };
+    await O.scene.items.addItems([item]);
+    // Link locally
+    p.obrItemId = item.id;
+    saveState();
+    renderRoster();
+    pushToOBRDebounced();
+    toast(p.name + ' dropped to map and linked.');
+  } catch (e) { console.error(e); toast('Drop failed: ' + (e.message || 'unknown error')); }
 }
 
 function openEquipFirearm(combatantId) {
