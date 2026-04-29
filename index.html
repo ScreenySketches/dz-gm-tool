@@ -1449,27 +1449,47 @@ function resetEconomyForId(id) {
 }
 
 function renderEquippedWeapon(c, w, i) {
-  const fa = getFirearm(w.firearmId);
-  if (!fa) return '';
-  const ammo = w.ammoLoaded || 'FMJ';
-  return `
-    <div style="background:var(--bg); border:1px solid var(--border); padding:6px 8px; margin-bottom:4px; border-radius:2px">
-      <div class="row tight">
-        <span class="firearm-type-${fa.type}" style="font-weight:bold">${escapeHtml(fa.name)}</span>
-        <span class="muted small-text">${fa.damageDice}${fa.damageBonus>=0?'+':''}${fa.damageBonus}</span>
-        <span class="stat-pill"><span class="label">MAG</span>
-          <input type="number" class="tiny" value="${w.currentMag ?? fa.magSize}" onchange="(()=>{const c=state.combatants.find(x=>x.id==='${c.id}'); c.weapons[${i}].currentMag=parseInt(this.value)||0; saveState();})()">
-          / ${fa.magSize}
-        </span>
-        <select onchange="(()=>{const c=state.combatants.find(x=>x.id==='${c.id}'); c.weapons[${i}].ammoLoaded=this.value; saveState();})()">
-          ${Object.keys(AMMO_TYPES).map(k => `<option value="${k}" ${ammo===k?'selected':''}>${AMMO_TYPES[k].name}</option>`).join('')}
-        </select>
-        <button class="small" onclick="quickReload('${c.id}',${i})">Reload</button>
-        <button class="small" onclick="loadFirearmIntoTab('${fa.id}','${c.id}')">→ Firearms Tab</button>
-        <button class="small danger" onclick="(()=>{const c=state.combatants.find(x=>x.id==='${c.id}'); c.weapons.splice(${i},1); saveState(); renderRoster();})()">×</button>
+  // Support both firearms and melee weapons in the equipped list
+  if (w.type === 'firearm') {
+    const fa = getFirearm(w.firearmId);
+    if (!fa) return '';
+    const ammo = w.ammoLoaded || 'FMJ';
+    return `
+      <div style="background:var(--bg); border:1px solid var(--border); padding:6px 8px; margin-bottom:4px; border-radius:2px">
+        <div class="row tight">
+          <span class="firearm-type-${fa.type}" style="font-weight:bold">${escapeHtml(fa.name)}</span>
+          <span class="muted small-text">${fa.damageDice}${fa.damageBonus>=0?'+':''}${fa.damageBonus}</span>
+          <span class="stat-pill"><span class="label">MAG</span>
+            <input type="number" class="tiny" value="${w.currentMag ?? fa.magSize}" onchange="(()=>{const c=state.combatants.find(x=>x.id==='${c.id}'); c.weapons[${i}].currentMag=parseInt(this.value)||0; saveState();})()">
+            / ${fa.magSize}
+          </span>
+          <select onchange="(()=>{const c=state.combatants.find(x=>x.id==='${c.id}'); c.weapons[${i}].ammoLoaded=this.value; saveState();})()">
+            ${Object.keys(AMMO_TYPES).map(k => `<option value="${k}" ${ammo===k?'selected':''}>${AMMO_TYPES[k].name}</option>`).join('')}
+          </select>
+          <button class="small" onclick="quickReload('${c.id}',${i})">Reload</button>
+          <button class="small" onclick="loadFirearmIntoTab('${fa.id}','${c.id}')">→ Firearms Tab</button>
+          <button class="small danger" onclick="(()=>{const c=state.combatants.find(x=>x.id==='${c.id}'); c.weapons.splice(${i},1); saveState(); renderRoster();})()">×</button>
+        </div>
       </div>
-    </div>
-  `;
+    `;
+  }
+
+  if (w.type === 'melee') {
+    const m = getMelee(w.meleeId);
+    if (!m) return '';
+    return `
+      <div style="background:var(--bg); border:1px solid var(--border); padding:6px 8px; margin-bottom:4px; border-radius:2px">
+        <div class="row tight">
+          <span style="font-weight:bold">${escapeHtml(m.name)}</span>
+          <span class="muted small-text">${m.damageDice}${m.damageBonus>0?'+'+m.damageBonus:''} ${m.damageType}</span>
+          <button class="small" onclick="loadMeleeIntoTab('${m.id}','${c.id}')">→ Melee Tab</button>
+          <button class="small danger" onclick="(()=>{const c=state.combatants.find(x=>x.id==='${c.id}'); c.weapons.splice(${i},1); saveState(); renderRoster();})()">×</button>
+        </div>
+      </div>
+    `;
+  }
+
+  return '';
 }
 
 function quickReload(combatantId, weaponIdx) {
@@ -1603,6 +1623,14 @@ function loadFirearmIntoTab(firearmId, fromCombatantId) {
   saveState();
   document.querySelector('#tabs button[data-tab="firearms"]').click();
   renderFirearms();
+}
+
+function loadMeleeIntoTab(meleeId, fromCombatantId) {
+  state.uiSelectedMelee = meleeId;
+  if (fromCombatantId) state.uiMeleeShooter = fromCombatantId;
+  saveState();
+  document.querySelector('#tabs button[data-tab="melee"]').click();
+  renderMelee();
 }
 
 function selectFirearm(id) {
@@ -3294,6 +3322,25 @@ window.dzMarkStandalone = function() {
   if (window.obrState.connected) return;
   document.body.classList.add('standalone-mode');
   console.log('D&Z Tool: running standalone (not in Owlbear Rodeo).');
+  // Offer a dev-only simulate button so developers can reveal OBR-only UI
+  try {
+    const extra = document.getElementById('obr-banner-extra');
+    if (extra) {
+      extra.innerHTML = '<button class="small" id="obr-sim-btn">Simulate OBR UI</button>';
+      const btn = document.getElementById('obr-sim-btn');
+      if (btn) btn.addEventListener('click', () => {
+        window.obrState = window.obrState || {};
+        window.obrState.connected = true;
+        window.obrState.role = 'GM';
+        document.body.classList.add('obr-connected');
+        document.body.classList.add('obr-gm-mode');
+        document.body.classList.remove('standalone-mode');
+        updateOBRBanner();
+        renderAll();
+        toast('Simulated OBR UI: buttons visible (no live OBR connection).');
+      });
+    }
+  } catch (e) {}
 };
 
 window.dzInitOBR = async function() {
